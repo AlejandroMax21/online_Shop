@@ -16,15 +16,15 @@ async function findAll(req, res) {
 
 async function findById(req, res) {
   try {
-    const data = await Product.findById(req.params.id);
+    const data = await Product.findById(req.params.id); 
+    
     if (!data.exists) return res.status(404).json({ message: "Producto no encontrado" });
-    res.status(200).json({ id: docSnapshot.id, ...docSnapshot.data() });
+    
+    res.status(200).json({ id: data.id, ...data.data() }); 
 
   } catch (error) {
     res.status(500).json({ message: "Error al obtener el producto", error: error.message });
   }
-  // const product = Product.findById(req.params.id);
-  // return product ? res.status(200).json(product) : res.status(404).json({ message: "Producto no encontrada" });
 }
 
 async function addProduct(req, res) {

@@ -1,29 +1,75 @@
 const Product = require("../models/product.model");
+// const admin = require("../config");
+// db = admin.firestore();
+const collection = db.collection("products");
 
-function findAll(req, res) {
-  const data = Product.findAll();
-  res.status(200).json(data);
-}
 
-function findById(req, res) {
-  const product = Product.findById(req.params.id);
-  return product ? res.status(200).json(product) : res.status(404).json({ message: "Producto no encontrada" });
-}
-
-function addProduct(req, res) {
-  if (!req.body) {
-    return res.status(400).json({ message: "Los campos son obligatorios" });
+async function findAll(req, res) {
+  try {
+    const snapshot = await collection.get();
+    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener los productos", error: error.message });
   }
-  const newProduct = Product.addProduct(req.body);
-  res.status(201).json(newProduct);
 }
 
-function updateProduct(req, res) {
-  const updated = Product.updateProduct(req.params.id, req.body);
-  return updated ? res.status(200).json(updated) : res.status(404).json({ message: "Producto no encontrada" });
+async function findById(req, res) {
+  try {
+    const data = await Product.findById(req.params.id);
+    if (!data.exists) return res.status(404).json({ message: "Producto no encontrado" });
+    res.status(200).json({ id: docSnapshot.id, ...docSnapshot.data() });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener el producto", error: error.message });
+  }
+  // const product = Product.findById(req.params.id);
+  // return product ? res.status(200).json(product) : res.status(404).json({ message: "Producto no encontrada" });
 }
 
-function deleteProduct(req, res) {
+async function addProduct(req, res) {
+  try {
+    if (!req.body.title)
+      return res.status(400).json({ message: "El título es obligatorio" });
+
+    req.body.completed = false;
+
+    const newProduct = await Product.addProduct(req.body);
+
+    // const newProduct = Product.addProduct(req.body);
+    res.status(201).json(newProduct);
+  } catch (error) {
+    res.status(500).json({ message: "Error al agregar el producto", error: error.message });
+  }
+}
+
+async function updateProduct(req, res) {
+  try {
+    const alreadyProduct = await Product.findById(req.params.id);
+    if (!alreadyProduct.exists) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+    const updated = await Product.updateProduct(req.params.id, req.body);
+
+    return updated ? res.status(200).json(updated) : res.status(404).json({ message: "Producto no encontrada" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al actualizar el producto", error: error.message });
+  }
+  // const updated = Product.updateProduct(req.params.id, req.body);
+  // return updated ? res.status(200).json(updated) : res.status(404).json({ message: "Producto no encontrada" });
+}
+
+async function deleteProduct(req, res) {
+  try {
+    const alreadyProduct = await Product.findById(req.params.id);
+    if (!alreadyProduct.exists) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+    const deleted = await Product.deleteProduct(req.params.id);
+    return deleted ? res.status(204).send() : res.status(404).json({ message: "Producto no encontrada" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al eliminar el producto", error: error.message });
+  }
   const deleted = Product.deleteProduct(req.params.id);
   return deleted ? res.status(204).send() : res.status(404).json({ message: "Producto no encontrada" });
 }

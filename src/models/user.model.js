@@ -1,61 +1,79 @@
 const { randomUUID } = require("node:crypto");
+const admin = require("../config");
+const db = admin.firestore();
+const collection = db.collection("users");
 
-let users = [
-  {
-    userID: randomUUID(),
-    name: "Alejandro",
-    password: "12345",
-    email: "aljoyaba@ittepic",
-    rol:"admin",
-    addres:"conocido",
-  },
-];
 
-function findAll() {
-  return users;
+async function findAll() {
+  const snapshot = await collection.get();
+  return snapshot.docs.map(doc => ({ userID: doc.id, ...doc.data() }));
 }
 
-function findById(id) {
-  return users.find((u) => u.userID === id) || null;
+async function findById(id) {
+  const docSnapshot = await collection.doc(id).get();
+  return docSnapshot;
 }
 
-function addUser(data) {
-  const user = {
-    userID: randomUUID(),
-    name: data.name,
-    password: data.password,
+async function findByEmail(email) {
+  const snapshot = await collection.where('email', '==', email).limit(1).get();
+
+  if (snapshot.empty) {
+    return null;
+  }
+  return snapshot.docs[0];
+}
+
+async function addUser(data) {
+  // Verificar si el email ya existe antes de crear
+  const existingUser = await findByEmail(data.email);
+  if (existingUser) {
+    return null;
+  }
+
+  const newUser = {
     email: data.email,
-    rol:data.rol,
-    addres:data.addres
+    password: data.password, 
+    name: data.name || "Nuevo Usuario", 
+    rol: data.rol || "user",
+    address: data.address || "",
   };
-  users.push(user);
-  return user;
+
+  const docRef = await collection.add(newUser);
+  
+  return { userID: docRef.id, ...newUser };
 }
 
-function updateUser(id, data) {
-  const index = users.findIndex((u) => u.userID === id);
-  if (index === -1) return null;
-  users[index] = {
-    ...users[index],
-    name: typeof data.name === "undefined" ? users[index].name : data.name,
-    password: typeof data.password === "undefined" ? users[index].password : data.password,
-    email: typeof data.email === "undefined" ? users[index].email : data.email,
-    rol: typeof data.rol === "undefined" ? users[index].rol : data.rol,
-    addres: typeof data.addres === "undefined" ? users[index].addres : data.addres,
-  };
-  return users[index];
+async function updateUser(id, data) {
+  const updateData = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.password !== undefined) updateData.password = data.password;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.rol !== undefined) updateData.rol = data.rol;
+  if (data.addres !== undefined) updateData.addres = data.addres;
+
+  if (Object.keys(updateData).length === 0) return await findById(id);
+
+  await collection.doc(id).update(updateData);
+
+  const updatedDoc = await collection.doc(id).get();
+  if (!updatedDoc.exists) return null;
+  return { userID: updatedDoc.id, ...updatedDoc.data() };
 }
 
-function deleteUser(id) {
-  const index = users.findIndex((u) => u.userID === id);
-  if (index === -1) return false;
-  users.splice(index, 1);
-  return true;
+async function deleteUser(id) {
+  try {
+    await collection.doc(id).delete();
+    return true;
+
+  } catch (error) {
+    return false;
+  }
 }
 
 module.exports = {
   findAll,
   findById,
+  findByEmail,
   addUser,
   updateUser,
   deleteUser,

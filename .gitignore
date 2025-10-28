@@ -52,3 +52,4 @@ report.*
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+keys/Credenciales_carrito.json

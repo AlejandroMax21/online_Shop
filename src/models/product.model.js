@@ -1,62 +1,62 @@
 const { randomUUID } = require("node:crypto");
+const admin = require("../config");
+const db = admin.firestore();
+const collection = db.collection("products");
 
-let products = [
-  {
-    productID: randomUUID(),
-    name: "Creatina",
-    marca: "Meta nutrition",
-    stock: 5,
-    precio: 325.50,
-    categoria:"Suplementos",
-    url_img:"www.CMetaN.com",
-    id_factura:"desconocido",
-  },
-];
-
-function findAll() {
-  return products;
+async function findAll() {
+  const snapshot = await collection.get();
+  return snapshot.docs.map(doc => ({ productID: doc.id, ...doc.data() }));
 }
 
-function findById(id) {
-  return products.find((p) => p.productID === id) || null;
+async function findById(id) {
+  return await collection.doc(id).get();
 }
 
-function addProduct(data) {
-  const product = {
-    productID: randomUUID(),
+async function addProduct(data) {
+  const newProduct = {
     name: data.name,
-    marca: data.marca,
-    stock: data.stock,
-    precio: data.precio,
-    categoria:data.categoria,
-    url_img:data.url_img,
-    id_factura:data.id_factura
+    brand: data.brand,
+    stock: data.stock || 0,
+    price: data.price || 0,
+    category: data.category || "General",
+    url_img: data.url_img || "",
+    id_invoice: data.id_invoice || "none",
   };
-  products.push(product);
-  return product;
+  
+  const docRef = await collection.add(newProduct);
+  
+  return { productID: docRef.id, ...newProduct };
 }
 
-function updateProduct(id, data) {
-  const index = products.findIndex((p) => p.productID === id);
-  if (index === -1) return null;
-  products[index] = {
-    ...products[index],
-    name: typeof data.name === "undefined" ? products[index].name : data.name,
-    marca: typeof data.marca === "undefined" ? products[index].marca : data.marca,
-    stock: typeof data.stock === "undefined" ? products[index].stock : data.stock,
-    precio: typeof data.precio === "undefined" ? products[index].precio : data.precio,
-    categoria: typeof data.categoria === "undefined" ? products[index].categoria : data.categoria,
-    url_img: typeof data.url_img === "undefined" ? products[index].url_img : data.url_img,
-    id_factura: typeof data.id_factura === "undefined" ? products[index].id_factura : data.id_factura,
-  };
-  return products[index];
+async function updateProduct(id, data) {
+  const updateData = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.brand !== undefined) updateData.brand = data.brand;
+  if (data.stock !== undefined) updateData.stock = data.stock;
+  if (data.price !== undefined) updateData.price = data.price;
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.url_img !== undefined) updateData.url_img = data.url_img;
+  if (data.id_invoice !== undefined) updateData.id_invoice = data.id_invoice;
+
+  if (Object.keys(updateData).length === 0) {
+      const doc = await findById(id);
+      return doc.exists ? { productID: doc.id, ...doc.data() } : null;
+  }
+  
+  await collection.doc(id).update(updateData);
+  
+  const updatedDoc = await collection.doc(id).get();
+  if (!updatedDoc.exists) return null;
+  return { productID: updatedDoc.id, ...updatedDoc.data() };
 }
 
-function deleteProduct(id) {
-  const index = products.findIndex((p) => p.productID === id);
-  if (index === -1) return false;
-  products.splice(index, 1);
-  return true;
+async function deleteProduct(id) {
+  try {
+    await collection.doc(id).delete();
+    return true; 
+  } catch (error) {
+    return false; 
+  }
 }
 
 module.exports = {
